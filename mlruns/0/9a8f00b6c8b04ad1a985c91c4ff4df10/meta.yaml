@@ -1,0 +1,15 @@
+artifact_uri: file:///home/default/AI-project/mlruns/0/9a8f00b6c8b04ad1a985c91c4ff4df10/artifacts
+end_time: 1747153455161
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 9a8f00b6c8b04ad1a985c91c4ff4df10
+run_name: ./sumerian_gpt2_finetuned
+run_uuid: 9a8f00b6c8b04ad1a985c91c4ff4df10
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747153418424
+status: 3
+tags: []
+user_id: default
