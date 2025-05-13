@@ -223,6 +223,83 @@ def update_folder_on_onedrive(onedrive_folder_path, local_folder_path):
         print(f"ERROR: An unexpected error occurred: {e}")
         return False
 
+def list_onedrive_folders(path="", depth=0, max_depth=None):
+    """
+    List all folders and subfolders in the OneDrive base destination path.
+    
+    Args:
+        path (str): Relative path from the base destination to list (default: "")
+        depth (int): Current recursion depth (used internally)
+        max_depth (int, optional): Maximum depth to recurse. None means unlimited.
+    
+    Returns:
+        list: List of folder paths in a hierarchical structure.
+    """
+    full_path = f"{RCLONE_REMOTE_NAME}:{ONEDRIVE_BASE_DESTINATION_PATH}{path}"
+    command = [
+        "rclone",
+        "lsf",
+        full_path,
+        "--dirs-only"
+    ]
+    
+    # Check if we've reached max depth
+    if max_depth is not None and depth >= max_depth:
+        return []
+    
+    result = []
+    try:
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, stderr = process.communicate()
+        
+        if process.returncode == 0:
+            folders = [name.rstrip('/') for name in stdout.strip().split('\n') if name]
+            
+            # Add current level folders to result with proper indentation
+            for folder in folders:
+                indent = "  " * depth
+                prefix = "├── " if depth > 0 else ""
+                result.append(f"{indent}{prefix}{folder}")
+                
+                # Recursively get subfolders
+                subfolder_path = f"{path}/{folder}" if path else folder
+                subfolders = list_onedrive_folders(subfolder_path, depth + 1, max_depth)
+                result.extend(subfolders)
+            
+            return result
+        else:
+            print(f"ERROR: rclone returned an error code {process.returncode}.")
+            if stderr:
+                print("rclone errors (stderr):\n", stderr)
+            return result
+    except FileNotFoundError:
+        print("ERROR: Command rclone not found. Make sure rclone is installed and in your PATH.")
+        return result
+    except Exception as e:
+        print(f"ERROR: An unexpected error occurred: {e}")
+        return result
+
+
+def print_onedrive_folders(max_depth=None):
+    """
+    Print all folders and subfolders in the OneDrive base destination path in a nice tree format.
+    
+    Args:
+        max_depth (int, optional): Maximum folder depth to display. None means unlimited.
+    """
+    print(f"OneDrive folders in {RCLONE_REMOTE_NAME}:{ONEDRIVE_BASE_DESTINATION_PATH}")
+    print("=" * 50)
+    
+    folders = list_onedrive_folders(max_depth=max_depth)
+    
+    if not folders:
+        print("No folders found.")
+    else:
+        for folder in folders:
+            print(folder)
+    
+    print("=" * 50)
+
 
 # --- EXAMPLE USAGE ---
 # local_folder_to_move = "./my_folder"
