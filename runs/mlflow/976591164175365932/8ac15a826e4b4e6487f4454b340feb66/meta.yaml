@@ -1,0 +1,15 @@
+artifact_uri: /home/default/AI-project/runs/mlflow/976591164175365932/8ac15a826e4b4e6487f4454b340feb66/artifacts
+end_time: 1747302174092
+entry_point_name: ''
+experiment_id: '976591164175365932'
+lifecycle_stage: active
+run_id: 8ac15a826e4b4e6487f4454b340feb66
+run_name: train5
+run_uuid: 8ac15a826e4b4e6487f4454b340feb66
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747301985731
+status: 3
+tags: []
+user_id: default
