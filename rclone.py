@@ -2,7 +2,7 @@ import subprocess
 import os
 import shutil
 
-RCLONE_REMOTE_NAME = "onedrive"  # remote name as configured in rclone.config
+RCLONE_REMOTE_NAME = "onedrive_bocconi"  # remote name as configured in rclone.config
 ONEDRIVE_BASE_DESTINATION_PATH = "AI-project/"
 
 def move_folder_to_onedrive(local_folder_path, onedrive_subfolder_name=None, delete_local_folder=True, verbose=False):

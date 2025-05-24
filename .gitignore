@@ -68,3 +68,4 @@ synthetic_sentences/
 synthetic_sentences_labels/
 train_continued/
 yolo_dataset/
+datasets/
