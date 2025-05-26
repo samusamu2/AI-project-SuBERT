@@ -1,6 +1,9 @@
+__pycache__/
 images/
-logs/
 mlruns/
 runs/
 images/
-__pycache__/
+
+sumerian_gpt2_finetuned/
+logs/
+datasets/
