@@ -1,0 +1,15 @@
+artifact_uri: /home/default/AI-project/runs/mlflow/696134742319260846/7c61030cacc34dec83b6b386dab53517/artifacts
+end_time: 1748132628013
+entry_point_name: ''
+experiment_id: '696134742319260846'
+lifecycle_stage: active
+run_id: 7c61030cacc34dec83b6b386dab53517
+run_name: cuneiform_detection_v2
+run_uuid: 7c61030cacc34dec83b6b386dab53517
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1748132617673
+status: 3
+tags: []
+user_id: default

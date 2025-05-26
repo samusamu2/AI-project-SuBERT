@@ -47,7 +47,7 @@ package-lock.json
 *.pkl
 *.joblib
 .vector_cache/
-runs/
+# runs/
 logs/
 
 # Misc
@@ -61,11 +61,9 @@ htmlcov/
 .pytest_cache/
 
 # Project
-cuneiform_chars/
+datasets/
 glyph_images/
+yolo_dataset/
 models/
 synthetic_sentences/
 synthetic_sentences_labels/
-train_continued/
-yolo_dataset/
-datasets/
