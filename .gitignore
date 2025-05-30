@@ -4,6 +4,6 @@ mlruns/
 runs/
 images/
 
-sumerian_gpt2_finetuned/
+sumerian_gpt2_finetuned/*
 logs/
-datasets/
+datasets/*
