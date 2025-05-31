@@ -10,7 +10,9 @@ from transformers import (
     Seq2SeqTrainer,
     DataCollatorForSeq2Seq
 )
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from evaluate import load
+
 
 MODEL_NAME = "google/mt5-small"
 OUTPUT_DIR = "./sumerian_mt5_model"
@@ -20,15 +22,23 @@ LOG_DIR = "./sumerian_mt5_logs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# Training hyperparameters
-NUM_EPOCHS = 20
-LEARNING_RATE = 5e-4
-BATCH_SIZE = 8
-MAX_SOURCE_LENGTH = 256
-MAX_TARGET_LENGTH = 256
-TRAIN_VALID_SPLIT = 0.1
+print(f"Loading model: {MODEL_NAME}")
+# Fix the tokenizer initialization by using AutoTokenizer
 
-# --- 2. Load and prepare data ---
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, legacy=False)
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
+model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+model.config.decoder_start_token_id = tokenizer.pad_token_id
+
+print(f"Device being used: {device}")
+print(f"Model loaded with {sum(p.numel() for p in model.parameters())/1e6:.2f}M parameters")
+print(f"Tokenizer vocabulary size: {len(tokenizer)}")
+
+
 print("Loading data...")
 train_data = pd.read_csv('datasets/SumTablets_English_train.csv')
 
@@ -40,17 +50,11 @@ except:
     print("No separate test file found. Will split from training data.")
     test_data = train_data
 
-# Load tokenizer and model
-print(f"Loading {MODEL_NAME}...")
-tokenizer = MT5Tokenizer.from_pretrained(MODEL_NAME)
-model = MT5ForConditionalGeneration.from_pretrained(MODEL_NAME)
+train_data
 
-# Move model to GPU if available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
-print(f"Using {device} for training")
+MAX_SOURCE_LENGTH = 256
+MAX_TARGET_LENGTH = 256
 
-# --- 3. Create dataset class ---
 class SumerianEnglishDataset(Dataset):
     def __init__(self, data, tokenizer, max_source_len, max_target_len):
         self.tokenizer = tokenizer
@@ -60,26 +64,23 @@ class SumerianEnglishDataset(Dataset):
         
         # Filter out rows with missing data
         self.filtered_data = []
+
         for idx, row in data.iterrows():
             if isinstance(row['transliteration'], str) and isinstance(row['translation'], str):
                 self.filtered_data.append({
                     'sumerian': row['transliteration'].replace('\n', ' '),
                     'english': row['translation'].replace('\n', ' ')
                 })
-        
-        print(f"Kept {len(self.filtered_data)} examples after filtering")
-        
+
     def __len__(self):
         return len(self.filtered_data)
     
     def __getitem__(self, idx):
         example = self.filtered_data[idx]
-        
-        # For MT5, we prepend a task prefix to clarify the task
         source_text = f"translate Sumerian to English: {example['sumerian']}"
         target_text = example['english']
-        
-        # Tokenize inputs
+
+        # Tokenize input and target
         source_encoding = self.tokenizer(
             source_text,
             max_length=self.max_source_len,
@@ -88,7 +89,6 @@ class SumerianEnglishDataset(Dataset):
             return_tensors="pt"
         )
         
-        # Tokenize targets
         target_encoding = self.tokenizer(
             target_text,
             max_length=self.max_target_len,
@@ -96,35 +96,26 @@ class SumerianEnglishDataset(Dataset):
             truncation=True,
             return_tensors="pt"
         )
-        
-        # Replace padding token id's with -100 for loss calculation
-        target_ids = target_encoding["input_ids"]
-        target_ids[target_ids == self.tokenizer.pad_token_id] = -100
-        
+
+        # Replace padding tokens with -100 for loss calculation
+        labels = target_encoding["input_ids"].squeeze(0)
+        labels = labels.clone()  # Ensure a separate copy
+        labels[labels == self.tokenizer.pad_token_id] = -100
+
+        # Return PyTorch tensors only
         return {
-            "input_ids": source_encoding["input_ids"].squeeze(),
-            "attention_mask": source_encoding["attention_mask"].squeeze(),
-            "labels": target_ids.squeeze()
+            "input_ids": source_encoding["input_ids"].squeeze(0).long(),
+            "attention_mask": source_encoding["attention_mask"].squeeze(0).long(),
+            "labels": labels.long()
         }
 
-# --- 4. Prepare datasets ---
-print("Creating datasets...")
-full_dataset = SumerianEnglishDataset(
+# Create training dataset
+train_dataset = SumerianEnglishDataset(
     train_data, 
     tokenizer, 
     max_source_len=MAX_SOURCE_LENGTH, 
     max_target_len=MAX_TARGET_LENGTH
 )
-
-# Split into training and validation sets
-if TRAIN_VALID_SPLIT > 0:
-    train_size = int((1 - TRAIN_VALID_SPLIT) * len(full_dataset))
-    valid_size = len(full_dataset) - train_size
-    train_dataset, eval_dataset = random_split(full_dataset, [train_size, valid_size])
-    print(f"Split into {train_size} training and {valid_size} validation samples")
-else:
-    train_dataset = full_dataset
-    eval_dataset = None
 
 # Create test dataset
 test_dataset = SumerianEnglishDataset(
@@ -134,12 +125,30 @@ test_dataset = SumerianEnglishDataset(
     max_target_len=MAX_TARGET_LENGTH
 )
 
-# --- 5. Define evaluation metrics ---
-def compute_metrics(eval_preds):
-    bleu_metric = load("bleu")
-    meteor_metric = load("meteor")
-    rouge_metric = load("rouge")
-    
+
+TRAIN_VALID_SPLIT = 0.1
+
+# Split into training and validation sets
+if TRAIN_VALID_SPLIT > 0:
+    train_size = int((1 - TRAIN_VALID_SPLIT) * len(train_dataset))
+    valid_size = len(train_dataset) - train_size
+    train_dataset, eval_dataset = random_split(train_dataset, [train_size, valid_size])
+    print(f"Split into {train_size} training and {valid_size} validation samples")
+else:
+    train_dataset = train_dataset
+    eval_dataset = None
+
+# Training hyperparameters
+NUM_EPOCHS = 15
+LEARNING_RATE = 1e-5
+BATCH_SIZE = 8
+
+# --- Define evaluation metrics ---
+bleu_metric = load("bleu")
+meteor_metric = load("meteor")
+rouge_metric = load("rouge")
+
+def compute_metrics(eval_preds):    
     preds, labels = eval_preds
     
     # Replace -100 with pad token id
@@ -153,31 +162,75 @@ def compute_metrics(eval_preds):
     decoded_preds = [pred.strip() for pred in decoded_preds]
     decoded_labels = [label.strip() for label in decoded_labels]
     
+    # Print some examples for debugging
+    print("\nSample predictions (first 2):")
+    for i in range(min(2, len(decoded_preds))):
+        print(f"Pred: '{decoded_preds[i]}'")
+        print(f"Label: '{decoded_labels[i]}'")
+        print("---")
+    
+    # Check if we have any valid predictions/labels to work with
+    if not decoded_preds or not decoded_labels:
+        print("Warning: Empty predictions or labels")
+        return {
+            "bleu": 0.0,
+            "meteor": 0.0, 
+            "rougeL": 0.0,
+            "gen_len": 0.0
+        }
+    
+    # Ensure all predictions and labels have content (not empty strings)
+    valid_pairs = [(p, l) for p, l in zip(decoded_preds, decoded_labels) if p.strip() and l.strip()]
+    if not valid_pairs:
+        print("Warning: No valid (non-empty) prediction-label pairs found")
+        return {
+            "bleu": 0.0,
+            "meteor": 0.0, 
+            "rougeL": 0.0,
+            "gen_len": 0.0
+        }
+    
+    # Unzip the valid pairs
+    valid_preds, valid_labels = zip(*valid_pairs)
+    
     # Format references for BLEU
-    references_for_bleu = [[label] for label in decoded_labels]
+    references_for_bleu = [[label] for label in valid_labels]
     
     # Calculate metrics
     results = {}
     
-    # BLEU
-    bleu_results = bleu_metric.compute(predictions=decoded_preds, references=references_for_bleu)
-    results["bleu"] = bleu_results["bleu"]
+    try:
+        # BLEU
+        bleu_results = bleu_metric.compute(predictions=valid_preds, references=references_for_bleu)
+        results["bleu"] = bleu_results["bleu"] if bleu_results else 0.0
+        
+        # METEOR
+        meteor_results = meteor_metric.compute(predictions=valid_preds, references=valid_labels)
+        results["meteor"] = meteor_results["meteor"] if meteor_results else 0.0
+        
+        # ROUGE
+        rouge_results = rouge_metric.compute(predictions=valid_preds, references=valid_labels)
+        results["rougeL"] = rouge_results["rougeL"] if rouge_results else 0.0
+        
+        # Add prediction length
+        pred_lens = [len(pred.split()) for pred in valid_preds]
+        results["gen_len"] = np.mean(pred_lens) if pred_lens else 0.0
     
-    # METEOR
-    meteor_results = meteor_metric.compute(predictions=decoded_preds, references=decoded_labels)
-    results["meteor"] = meteor_results["meteor"]
-    
-    # ROUGE
-    rouge_results = rouge_metric.compute(predictions=decoded_preds, references=decoded_labels)
-    results["rougeL"] = rouge_results["rougeL"]
-    
-    # Add prediction length
-    pred_lens = [len(pred.split()) for pred in decoded_preds]
-    results["gen_len"] = np.mean(pred_lens)
+    except Exception as e:
+        print(f"Error computing metrics: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # Return zeros for all metrics if computation fails
+        return {
+            "bleu": 0.0,
+            "meteor": 0.0, 
+            "rougeL": 0.0,
+            "gen_len": 0.0
+        }
     
     return {k: round(v, 4) if isinstance(v, float) else v for k, v in results.items()}
-
-# --- 6. Data collator ---
+    
+# --- Data collator ---
 data_collator = DataCollatorForSeq2Seq(
     tokenizer,
     model=model,
@@ -199,10 +252,15 @@ training_args = Seq2SeqTrainingArguments(
     logging_dir=LOG_DIR,
     logging_steps=100,
     save_strategy="epoch",
-    fp16=torch.cuda.is_available(),
+    fp16=False,
     gradient_accumulation_steps=2,
+    max_grad_norm=1.0,                      # gradient clipping
     generation_max_length=MAX_TARGET_LENGTH,
-    report_to="tensorboard"
+    report_to="tensorboard",
+    warmup_steps=500,
+    lr_scheduler_type="cosine",
+    load_best_model_at_end=True,
+    metric_for_best_model="eval_loss"
 )
 
 # --- 8. Initialize trainer ---
@@ -224,36 +282,3 @@ trainer.train()
 print(f"Saving model to {OUTPUT_DIR}")
 model.save_pretrained(OUTPUT_DIR)
 tokenizer.save_pretrained(OUTPUT_DIR)
-
-# --- 11. Testing on examples ---
-print("\nTesting on example data...")
-
-def generate_translation(sumerian_text):
-    input_text = f"translate Sumerian to English: {sumerian_text}"
-    input_ids = tokenizer(input_text, return_tensors="pt").input_ids.to(device)
-    
-    outputs = model.generate(
-        input_ids=input_ids,
-        max_length=MAX_TARGET_LENGTH,
-        num_beams=4,
-        length_penalty=0.6,
-        early_stopping=True,
-        no_repeat_ngram_size=3
-    )
-    
-    translation = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return translation
-
-# Test on 5 examples
-for i, row in test_data.head(5).iterrows():
-    if isinstance(row['transliteration'], str):
-        sumerian_text = row['transliteration'].replace('\n', ' ')
-        actual_translation = row['translation'].replace('\n', ' ') if isinstance(row['translation'], str) else "N/A"
-        
-        print(f"\nExample {i+1}:")
-        print(f"Sumerian: {sumerian_text}")
-        print(f"Actual Translation: {actual_translation}")
-        
-        generated_translation = generate_translation(sumerian_text)
-        print(f"MT5 Translation: {generated_translation}")
-        print("-" * 50)
