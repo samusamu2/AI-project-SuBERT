@@ -131,9 +131,6 @@ bleu_metric = load("bleu")
 meteor_metric = load("meteor")
 rouge_metric = load("rouge")
 
-# maybe also chrf but we need to install evaluate e sacrebleu
-# chrf_metric = load("chrf")
-
 def compute_metrics(eval_preds):
     preds, labels = eval_preds
 
@@ -143,12 +140,9 @@ def compute_metrics(eval_preds):
     elif isinstance(preds, (list, tuple)):
         print(f"DEBUG: Lunghezza iniziale di preds: {len(preds)}")
 
-
-    # --- INIZIO PARTE CRUCIALE PER GESTIRE PREDS ---
     actual_token_ids = preds # Rinominiamo per chiarezza
 
-    # Caso 1: preds potrebbe essere una tupla (comune output di model.generate())
-    # Le sequenze di token generate sono di solito il primo elemento.
+    # Case 1: If preds is a tuple, it might contain logits or actual token IDs.
     if isinstance(preds, tuple):
         print("DEBUG: preds è una tupla, prendo il primo elemento.")
         actual_token_ids = preds[0]
@@ -158,27 +152,18 @@ def compute_metrics(eval_preds):
         print(f"DEBUG: Shape di actual_token_ids dopo il check della tupla: {actual_token_ids.shape}")
 
 
-    # Caso 2: actual_token_ids potrebbero essere logits (es. shape: batch_size, seq_len, vocab_size)
-    # Convertiamo i logits in ID token usando argmax.
-    # Nota: Questo è greedy decoding. Per beam search, etc., il Trainer DEVE usare model.generate().
-    # Il check ndim == 3 è un buon indicatore di logits per modelli di linguaggio.
+    # Case 2: If preds is a numpy array or PyTorch tensor, we need to check its shape.
     if isinstance(actual_token_ids, (np.ndarray, torch.Tensor)) and actual_token_ids.ndim == 3:
         print("DEBUG: actual_token_ids sembrano logits, applico argmax.")
-        if isinstance(actual_token_ids, torch.Tensor): # Se è un tensore PyTorch (magari su GPU)
-            actual_token_ids = actual_token_ids.cpu().numpy() # Sposta su CPU e converti in NumPy
-        actual_token_ids = np.argmax(actual_token_ids, axis=-1) # Prendi gli ID dei token con probabilità massima
+        if isinstance(actual_token_ids, torch.Tensor):
+            actual_token_ids = actual_token_ids.cpu().numpy()
+        actual_token_ids = np.argmax(actual_token_ids, axis=-1)
         print(f"DEBUG: Shape di actual_token_ids dopo argmax: {actual_token_ids.shape}")
 
-    # A questo punto, actual_token_ids DOVREBBE essere un array 2D (batch_size, seq_len) di ID token
-    # o una lista di liste di ID token.
-    # --- FINE PARTE CRUCIALE PER GESTIRE PREDS ---
-
-    # Sostituisci -100 nelle etichette (questo è corretto)
+    # Substitute -100 labels with pad_token_id
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
 
-    # Decodifica i token in testo
     try:
-        # 'actual_token_ids' ora dovrebbe avere il formato corretto
         decoded_preds = tokenizer.batch_decode(actual_token_ids, skip_special_tokens=True)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
     except Exception as e:
@@ -190,7 +175,6 @@ def compute_metrics(eval_preds):
         raise e
 
 
-    # Pulizia del testo (la tua logica qui sembra un buon punto di partenza, da adattare)
     cleaned_preds = [pred.split("English:")[-1].replace("<|endoftext|>", "").strip() if "English:" in pred else pred.replace("<|endoftext|>", "").strip() for pred in decoded_preds]
     cleaned_labels = [label.split("English:")[-1].replace("<|endoftext|>", "").strip() if "English:" in label else label.replace("<|endoftext|>", "").strip() for label in decoded_labels]
 
@@ -199,15 +183,12 @@ def compute_metrics(eval_preds):
 
     try:
         bleu_score_dict = bleu_metric.compute(predictions=cleaned_preds, references=list_of_lists_labels)
-        # 'sacrebleu' (usato da evaluate.load("sacrebleu")) di solito restituisce il punteggio in 'score'
-        # versioni più vecchie o altre implementazioni potrebbero usare 'bleu'
         results["bleu"] = bleu_score_dict.get("score", bleu_score_dict.get("bleu", 0.0))
 
         meteor_score_dict = meteor_metric.compute(predictions=cleaned_preds, references=cleaned_labels)
         results["meteor"] = meteor_score_dict["meteor"]
 
         rouge_score_dict = rouge_metric.compute(predictions=cleaned_preds, references=cleaned_labels)
-        # ROUGE di 'evaluate' restituisce diversi score, rougeLsum è spesso usato per riassunti/traduzioni
         results["rougeL"] = rouge_score_dict.get("rougeLsum", rouge_score_dict.get("rougeL", 0.0)) 
     except Exception as e:
         print(f"AVVISO: Errore nel calcolo di una metrica: {e}")
@@ -218,10 +199,6 @@ def compute_metrics(eval_preds):
         results["meteor"] = results.get("meteor", 0.0)
         results["rougeL"] = results.get("rougeL", 0.0)
 
-
-    # Calcolo lunghezza (attenzione: tokenizer.encode su testo già pulito potrebbe non essere l'ideale
-    # se vuoi la lunghezza originale dei token generati, meglio contare gli ID in actual_token_ids prima di skip_special_tokens)
-    # Ma per una stima della lunghezza del testo generato va bene.
     try:
         prediction_lens = [len(tokenizer.encode(p, add_special_tokens=False)) for p in cleaned_preds]
         results["gen_len"] = np.mean(prediction_lens) if prediction_lens else 0.0
@@ -230,7 +207,6 @@ def compute_metrics(eval_preds):
         results["gen_len"] = 0.0
 
     return {k: round(v, 4) if isinstance(v, float) else v for k, v in results.items()}
-
 
 
 # Set the pad_token_id in the model configuration (important for generation and padding)
