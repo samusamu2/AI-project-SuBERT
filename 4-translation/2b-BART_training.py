@@ -24,7 +24,7 @@ MAX_INPUT_LENGTH = 512
 MAX_TARGET_LENGTH = 512
 BATCH_SIZE = 8
 LEARNING_RATE = 1e-5
-NUM_TRAIN_EPOCHS = 100
+NUM_TRAIN_EPOCHS = 200
 
 # check if dirs exist, if not create them
 os.makedirs(OUTPUT_DIR, exist_ok=True)
