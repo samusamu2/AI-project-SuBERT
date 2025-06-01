@@ -71,8 +71,8 @@ htmlcov/
 .pytest_cache/
 
 # Project
-datasets/
-glyph_images/
+datasets/*
+glyph_images/*
 yolo_dataset/
 models/
 synthetic_sentences/
