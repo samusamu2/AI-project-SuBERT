@@ -1,6 +1,6 @@
 # 2-vision_task_glyphs_recognition
 
-In this folder we will implement our vision task. Unfortunately, we would need to label lots of images of Sumerian tablets to obtain a nice mworking classifier, which is out of the scope of this project. Instead, we will just explore the expressive potential of the YOLO model by creating some noisy synthetic sentences from the Sumerian Font. More on this is commented on the report.
+In this folder we will implement our vision task. Unfortunately, we would need to label lots of images of Sumerian tablets to obtain a nice working classifier, which is out of the scope of this project. Instead, we will just explore the expressive potential of the YOLO model by creating some noisy synthetic sentences from the Sumerian Font. More on this is commented on the report.
 
 Here are the files in this folder:
 - `1_create-glyph-images.ipynb`: create images for single glyphs from the `NotoSansCuneiform-Regular.ttf` font.
