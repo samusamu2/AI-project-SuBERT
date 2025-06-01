@@ -38,3 +38,5 @@ If you wish to access the shared folder and download datasets using `rclone`, pl
 - Run `rclone config` in your terminal and connect it to your OneDrive.
 
 **Note:** if you wish to use our code to read and write in the folder, kindly name the remote "`onedrive`" when running `rclone` configuration.
+
+Michael Menghi
