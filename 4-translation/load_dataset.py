@@ -12,6 +12,7 @@ def load_dataset(file_path):
     """
     
     try:
+        # Load the dataset
         data = pd.read_csv(file_path)
         print(f"Loaded {len(data)} examples from {file_path}")
         return data
@@ -34,10 +35,10 @@ def preprocess_dataset(file_path):
     if data is None:
         return None
 
-    # return a dataframe with only the 'transliteration' and 'translation' columns
+    # Return a dataframe with only the 'transliteration' and 'translation' columns
     data = data[['transliteration', 'translation']]
 
-    # drop na values in 'transliteration' and 'translation' columns
+    # Drop na values in 'transliteration' and 'translation' columns
     data = data.dropna(subset=['transliteration', 'translation'])
 
     # Filter out rows with missing data
