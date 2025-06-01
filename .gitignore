@@ -1,3 +1,13 @@
+__pycache__/
+images/
+mlruns/
+runs/
+images/
+
+sumerian_gpt2_finetuned/*
+logs/
+datasets/*
+
 # Python
 __pycache__/
 *.py[cod]
