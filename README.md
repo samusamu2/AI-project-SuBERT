@@ -40,3 +40,4 @@ If you wish to access the shared folder and download datasets using `rclone`, pl
 **Note:** if you wish to use our code to read and write in the folder, kindly name the remote "`onedrive`" when running `rclone` configuration.
 
 Michael Menghi
+Luca Martucci
