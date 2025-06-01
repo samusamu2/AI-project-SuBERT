@@ -72,6 +72,7 @@ htmlcov/
 
 # Project
 datasets/*
+!datasets/.gitkeep
 glyph_images/*
 yolo_dataset/
 models/
