@@ -10,5 +10,7 @@ Here are the details of the single files in this folder:
 - `1b-GPT2_finetuning`: corresponding Python file.
 - `2-BART_training.ipynb`: contains code for finetuning of BART encoder-decoder model.
 - `2b-BART_training.py`: corresponding Python file.
+- `3-testing.ipynb`: tests the various models on our test datasets and produce a table with results of some metrics.
+- `4-test_results.ipynb`: summarizes the results obtained in the previous step by making several plots.
 - `compute_metrics.py`: define the metrics we will use as compute_metrics parameter in our models.
 - `load_dataset.py`: defines some function for dataset preparation useful to feed data in encoder-decoder models.
