@@ -12,12 +12,10 @@ import random
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
 
-# === CONFIG ===
 INPUT_DIR = "glyph_images"
 YOLO_DATA_DIR = "yolo_dataset"
 
-# === LOAD GLYPHS ===
-# Assuming this part is in a cell after INPUT_DIR is defined
+# Load glyphs
 glyph_files = sorted([f for f in os.listdir(INPUT_DIR) if f.endswith(('.png', '.jpg', '.jpeg'))])
 glyph_classes = {f: idx for idx, f in enumerate(glyph_files)}
 num_classes = len(glyph_classes)
@@ -35,7 +33,7 @@ else:
 
 model = YOLO(model_path)
 
-# Continue training the model with the new dataset
+# Continue training the model if old version is found
 model.train(
     data=os.path.join(YOLO_DATA_DIR, "glyphs-seg.yaml"),  # Path to the dataset YAML file
     epochs=100,                 # Number of epochs to train
@@ -81,7 +79,7 @@ model.train(
     resume=resume,              # Resume training from the last checkpoint if it exists
     )
 
-# ─── SAVE MODEL ────────────────────────────────────────────────────
+# Save the best model weights
 model_save_path = "yolo_classifier/best_v2.pt"
 os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
 

@@ -7,7 +7,8 @@ Here are the files in this folder:
 - `2_generate-sentences.ipynb`: generate sentences by picking a number of random glyphs. Some transformations are applied to glyphs to make sentences noisy, such as small traslations, resizings, blurring and masking.
 - `3_yolo-classifier.ipynb`: this notebook contains the actual implementation of the YOLO classifier.
 - `3b_yolo-classifier.py`: this file contains the same model as designed in the previous notebook, but in a Python format*.
-- `4_create-synthetic-tablets.ipynb`: this file creates some synthetic version of complete tablets. It may be useful for testing purposes on our YOLO classifier. Again, we remark that this serves just as a test on the expressive power of this model, and we are aware that the model as it is cannot be used to implement a full translation pipeline from Sumerian tablets (or linart) images to translated text.
+- `4_F-CNN.ipynb`: implementation of the Faster CNN.
+- `5_create-synthetic-tablets.ipynb`: this file creates some synthetic version of complete tablets. It may be useful for testing purposes on our YOLO classifier. Again, we remark that this serves just as a test on the expressive power of this model, and we are aware that the model as it is cannot be used to implement a full translation pipeline from Sumerian tablets (or linart) images to translated text.
 
 
 \* <b>Note on Python files:</b>
